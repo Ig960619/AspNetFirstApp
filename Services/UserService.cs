@@ -22,7 +22,7 @@ public class UserService : IUserService
         return _repository.GetById(id);
     }
 
-    public User? CreateUser(string username, string city, string? lastName, string? middleName, string? firstName, string? email, string? phone, string? password)
+    public User? CreateUser(string username, string city, string? lastName, string? middleName, string? firstName, string? email, string? phone)
     {
         if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(city))
             return null;
@@ -35,14 +35,13 @@ public class UserService : IUserService
             UserMiddleName = middleName ?? "",
             UserFirstName = firstName,
             Email = email,
-            Phone = phone,
-            Password = password
+            Phone = phone
         };
 
         return _repository.Add(user);
     }
 
-    public User? UpdateUser(int id, string username, string city, string? lastName, string? middleName, string? firstName, string? email, string? phone, string? password)
+    public User? UpdateUser(int id, string username, string city, string? lastName, string? middleName, string? firstName, string? email, string? phone)
     {
         var existing = _repository.GetById(id);
         if (existing == null) return null;
@@ -54,7 +53,6 @@ public class UserService : IUserService
         existing.UserFirstName = firstName;
         existing.Email = email;
         existing.Phone = phone;
-        existing.Password = password;
 
         _repository.Update(existing);
         return existing;

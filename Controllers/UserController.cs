@@ -22,8 +22,6 @@ public class UserController : ControllerBase
     /// <summary>
     /// Получить всех пользователей
     /// </summary>
-    /// <returns>Список всех пользователей</returns>
-    /// <response code="200">Возвращает список пользователей</response>
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public ActionResult<IEnumerable<User>> GetAll()
@@ -35,10 +33,6 @@ public class UserController : ControllerBase
     /// <summary>
     /// Получить пользователя по ID
     /// </summary>
-    /// <param name="id">ID пользователя</param>
-    /// <returns>Пользователь с указанным ID</returns>
-    /// <response code="200">Возвращает пользователя</response>
-    /// <response code="404">Пользователь не найден</response>
     [HttpGet("{id:int:min(1)}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -55,12 +49,8 @@ public class UserController : ControllerBase
     }
 
     /// <summary>
-    /// Создать нового пользователя
+    /// Создать нового пользователя (без пароля - используйте /api/auth/register)
     /// </summary>
-    /// <param name="userData">Данные пользователя</param>
-    /// <returns>Созданный пользователь</returns>
-    /// <response code="201">Пользователь успешно создан</response>
-    /// <response code="400">Некорректные данные</response>
     [HttpPost]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -71,6 +61,7 @@ public class UserController : ControllerBase
             return BadRequest(new { message = "Username и City обязательны" });
         }
 
+        // Создание без пароля (пароль устанавливается через регистрацию)
         var user = _service.CreateUser(
             userData.Username,
             userData.City,
@@ -78,8 +69,7 @@ public class UserController : ControllerBase
             userData.UserMiddleName,
             userData.UserFirstName,
             userData.Email,
-            userData.Phone,
-            userData.Password
+            userData.Phone
         );
 
         if (user == null)
@@ -97,12 +87,6 @@ public class UserController : ControllerBase
     /// <summary>
     /// Обновить данные пользователя
     /// </summary>
-    /// <param name="id">ID пользователя</param>
-    /// <param name="userData">Обновленные данные</param>
-    /// <returns>Обновленный пользователь</returns>
-    /// <response code="200">Пользователь успешно обновлен</response>
-    /// <response code="400">Некорректные данные</response>
-    /// <response code="404">Пользователь не найден</response>
     [HttpPut("{id:int:min(1)}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -122,8 +106,7 @@ public class UserController : ControllerBase
             userData.UserMiddleName,
             userData.UserFirstName,
             userData.Email,
-            userData.Phone,
-            userData.Password
+            userData.Phone
         );
 
         if (user == null)
@@ -137,9 +120,6 @@ public class UserController : ControllerBase
     /// <summary>
     /// Удалить пользователя
     /// </summary>
-    /// <param name="id">ID пользователя</param>
-    /// <response code="204">Пользователь успешно удален</response>
-    /// <response code="404">Пользователь не найден</response>
     [HttpDelete("{id:int:min(1)}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

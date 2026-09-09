@@ -1,77 +1,69 @@
+// Models/User.cs
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using WebApplication1.Models.Auth;
 
 namespace WebApplication1.Models;
 
-/// <summary>
-/// Модель пользователя, маппится на таблицу users в БД ASPNetDB
-/// </summary>
-[Table("users")]  // Указываем имя таблицы в БД
+[Table("users")]
 public class User
 {
-    /// <summary>
-    /// Уникальный идентификатор (int, auto-increment)
-    /// </summary>
     [Key]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int Id { get; set; }
 
-    /// <summary>
-    /// Имя пользователя (обязательно, до 50 символов)
-    /// </summary>
     [Required]
     [MaxLength(50)]
-    [Column("Username")]
     public string Username { get; set; } = "";
 
-    /// <summary>
-    /// Фамилия (до 50 символов, может быть null)
-    /// </summary>
     [MaxLength(50)]
-    [Column("UserLastName")]
     public string? UserLastName { get; set; }
 
-    /// <summary>
-    /// Отчество (обязательно, до 50 символов)
-    /// </summary>
     [Required]
     [MaxLength(50)]
-    [Column("UserMiddleName")]
     public string UserMiddleName { get; set; } = "";
 
-    /// <summary>
-    /// Имя (до MAX символов, может быть null)
-    /// ВАЖНО: В БД колонка называется "User FirstName" с пробелом!
-    /// </summary>
-    [Column("User FirstName")]  // Имя колонки с пробелом!
+    [Column("User FirstName")]
     public string? UserFirstName { get; set; }
 
-    /// <summary>
-    /// Email (до 50 символов, может быть null)
-    /// </summary>
-    [MaxLength(50)]
-    [Column("Email")]
+    [MaxLength(100)]  // Увеличили для email
     public string? Email { get; set; }
 
-    /// <summary>
-    /// Телефон (до 50 символов, может быть null)
-    /// </summary>
-    [MaxLength(50)]
-    [Column("Phone")]
+    [MaxLength(20)]
     public string? Phone { get; set; }
 
-    /// <summary>
-    /// Город (обязательно, до 50 символов)
-    /// </summary>
     [Required]
     [MaxLength(50)]
-    [Column("City")]
     public string City { get; set; } = "";
 
+    // === НОВЫЕ ПОЛЯ БЕЗОПАСНОСТИ ===
+
     /// <summary>
-    /// Пароль (до 50 символов, может быть null)
+    /// Хешированный пароль (BCrypt)
     /// </summary>
-    [MaxLength(50)]
-    [Column("Password")]
-    public string? Password { get; set; }
+    [MaxLength(255)]
+    public string? PasswordHash { get; set; }
+
+    /// <summary>
+    /// Email подтверждён?
+    /// </summary>
+    public bool IsEmailConfirmed { get; set; } = false;
+
+    /// <summary>
+    /// Заблокирован до (null = не заблокирован)
+    /// </summary>
+    public DateTime? LockedUntil { get; set; }
+
+    /// <summary>
+    /// Количество неудачных попыток входа
+    /// </summary>
+    public int FailedLoginAttempts { get; set; } = 0;
+
+    /// <summary>
+    /// Дата последнего входа
+    /// </summary>
+    public DateTime? LastLoginAt { get; set; }
+
+    // Навигационное свойство для refresh токенов
+    public ICollection<RefreshToken>? RefreshTokens { get; set; }
 }

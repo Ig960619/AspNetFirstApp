@@ -1,21 +1,53 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 using WebApplication1.Data;
 using WebApplication1.Repositories;
 using WebApplication1.Services;
 
 var builder = WebApplication.CreateBuilder();
 
-// DbContext
+// === DbContext ===
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// DI - Repositories
+// === Repositories ===
 builder.Services.AddScoped<IUserRepository, SqlUserRepository>();
 
-// DI - Services
+// === Services ===
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
+builder.Services.AddScoped<IJwtService, JwtService>();
 
-// MVC Controllers
+// === JWT Authentication ===
+var jwtKey = builder.Configuration["Jwt:SecretKey"] 
+    ?? throw new InvalidOperationException("JWT SecretKey not configured");
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+        ClockSkew = TimeSpan.Zero
+    };
+});
+
+builder.Services.AddAuthorization();
+
+// === MVC Controllers ===
 builder.Services.AddControllers();
 
 var app = builder.Build();
@@ -28,10 +60,13 @@ using (var scope = app.Services.CreateScope())
     Console.WriteLine($"[DEBUG] Пользователей в БД: {users.Count()}");
 }
 
-// Map controllers (маршрутизация через атрибуты)
+// === Middleware ===
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapControllers();
 
-// Fallback для статической страницы (используем физический путь к файлу)
+// Fallback для статической страницы
 app.MapFallback(async (context) =>
 {
     var filePath = Path.Combine(builder.Environment.ContentRootPath, "html", "index.html");

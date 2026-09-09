@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿// Repositories/SqlUserRepository.cs
+using Microsoft.EntityFrameworkCore;
 using WebApplication1.Data;
 using WebApplication1.Models;
 
@@ -27,11 +28,27 @@ public class SqlUserRepository : IUserRepository
                        .FirstOrDefault(u => u.Id == id);
     }
 
+    // === НОВЫЕ МЕТОДЫ ===
+
+    public async Task<User?> GetByUsernameAsync(string username)
+    {
+        return await _context.Users
+                             .AsNoTracking()
+                             .FirstOrDefaultAsync(u => u.Username == username);
+    }
+
+    public async Task<User?> GetByEmailAsync(string email)
+    {
+        return await _context.Users
+                             .AsNoTracking()
+                             .FirstOrDefaultAsync(u => u.Email == email);
+    }
+
     public User Add(User user)
     {
         _context.Users.Add(user);
         _context.SaveChanges();
-        return user;  // Id будет заполнен после SaveChanges
+        return user;
     }
 
     public bool Update(User user)
@@ -46,7 +63,13 @@ public class SqlUserRepository : IUserRepository
         existing.Email = user.Email;
         existing.Phone = user.Phone;
         existing.City = user.City;
-        existing.Password = user.Password;
+
+        // Обновляем поля безопасности
+        existing.PasswordHash = user.PasswordHash;
+        existing.IsEmailConfirmed = user.IsEmailConfirmed;
+        existing.LockedUntil = user.LockedUntil;
+        existing.FailedLoginAttempts = user.FailedLoginAttempts;
+        existing.LastLoginAt = user.LastLoginAt;
 
         _context.SaveChanges();
         return true;
