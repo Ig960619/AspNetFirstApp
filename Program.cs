@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using WebApplication1.Controllers;
 using WebApplication1.Data;
 using WebApplication1.Repositories;
 using WebApplication1.Services;
@@ -10,10 +9,14 @@ var builder = WebApplication.CreateBuilder();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// DI
+// DI - Repositories
 builder.Services.AddScoped<IUserRepository, SqlUserRepository>();
+
+// DI - Services
 builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<UserController>();
+
+// MVC Controllers
+builder.Services.AddControllers();
 
 var app = builder.Build();
 
@@ -25,11 +28,15 @@ using (var scope = app.Services.CreateScope())
     Console.WriteLine($"[DEBUG] Пользователей в БД: {users.Count()}");
 }
 
-app.Run(async (context) =>
+// Map controllers (маршрутизация через атрибуты)
+app.MapControllers();
+
+// Fallback для статической страницы (используем физический путь к файлу)
+app.MapFallback(async (context) =>
 {
-    // Получаем контроллер через DI внутри запроса
-    var userController = context.RequestServices.GetRequiredService<UserController>();
-    await userController.HandleRequestAsync(context);
+    var filePath = Path.Combine(builder.Environment.ContentRootPath, "html", "index.html");
+    context.Response.ContentType = "text/html; charset=utf-8";
+    await context.Response.SendFileAsync(filePath);
 });
 
 app.Run();

@@ -1,182 +1,157 @@
-﻿using System.Text.RegularExpressions;
+﻿using Microsoft.AspNetCore.Mvc;
 using WebApplication1.Models;
 using WebApplication1.Services;
 
 namespace WebApplication1.Controllers;
 
-public class UserController
+/// <summary>
+/// REST API контроллер для управления пользователями.
+/// Соответствует REST-архитектуре и принципам SOLID.
+/// </summary>
+[ApiController]
+[Route("api/[controller]")]
+public class UserController : ControllerBase
 {
     private readonly IUserService _service;
-    private readonly string _expressionForId = @"^/api/users/\d+$";
 
     public UserController(IUserService service)
     {
         _service = service;
     }
 
-    public async Task HandleRequestAsync(HttpContext context)
-    {
-        var response = context.Response;
-        var request = context.Request;
-        var path = request.Path;
-
-        if (path == "/api/users" && request.Method == "GET")
-        {
-            await GetAllUsersAsync(response);
-        }
-        else if (IsIdPath(path) && request.Method == "GET")
-        {
-            var id = GetIdFromPath(path);
-            await GetUserByIdAsync(id, response);
-        }
-        else if (path == "/api/users" && request.Method == "POST")
-        {
-            await CreateUserAsync(request, response);
-        }
-        else if (IsIdPath(path) && request.Method == "PUT")
-        {
-            var id = GetIdFromPath(path);
-            await UpdateUserAsync(id, request, response);
-        }
-        else if (IsIdPath(path) && request.Method == "DELETE")
-        {
-            var id = GetIdFromPath(path);
-            await DeleteUserAsync(id, response);
-        }
-        else
-        {
-            response.ContentType = "text/html; charset=utf-8";
-            await response.SendFileAsync("html/index.html");
-        }
-    }
-
-    private async Task GetAllUsersAsync(HttpResponse response)
+    /// <summary>
+    /// Получить всех пользователей
+    /// </summary>
+    /// <returns>Список всех пользователей</returns>
+    /// <response code="200">Возвращает список пользователей</response>
+    [HttpGet]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult<IEnumerable<User>> GetAll()
     {
         var users = _service.GetAllUsers();
-        await response.WriteAsJsonAsync(users);
+        return Ok(users);
     }
 
-    private async Task GetUserByIdAsync(int id, HttpResponse response)
+    /// <summary>
+    /// Получить пользователя по ID
+    /// </summary>
+    /// <param name="id">ID пользователя</param>
+    /// <returns>Пользователь с указанным ID</returns>
+    /// <response code="200">Возвращает пользователя</response>
+    /// <response code="404">Пользователь не найден</response>
+    [HttpGet("{id:int:min(1)}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public ActionResult<User> GetById(int id)
     {
         var user = _service.GetUserById(id);
 
-        if (user != null)
+        if (user == null)
         {
-            await response.WriteAsJsonAsync(user);
+            return NotFound(new { message = "Пользователь не найден" });
         }
-        else
-        {
-            response.StatusCode = 404;
-            await response.WriteAsJsonAsync(new { message = "Пользователь не найден" });
-        }
+
+        return Ok(user);
     }
 
-    private async Task CreateUserAsync(HttpRequest request, HttpResponse response)
+    /// <summary>
+    /// Создать нового пользователя
+    /// </summary>
+    /// <param name="userData">Данные пользователя</param>
+    /// <returns>Созданный пользователь</returns>
+    /// <response code="201">Пользователь успешно создан</response>
+    /// <response code="400">Некорректные данные</response>
+    [HttpPost]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public ActionResult<User> Create([FromBody] User userData)
     {
-        try
+        if (userData == null || string.IsNullOrWhiteSpace(userData.Username) || string.IsNullOrWhiteSpace(userData.City))
         {
-            var userData = await request.ReadFromJsonAsync<User>();
-
-            if (userData == null || string.IsNullOrWhiteSpace(userData.Username) || string.IsNullOrWhiteSpace(userData.City))
-            {
-                response.StatusCode = 400;
-                await response.WriteAsJsonAsync(new { message = "Username и City обязательны" });
-                return;
-            }
-
-            var user = _service.CreateUser(
-                userData.Username,
-                userData.City,
-                userData.UserLastName,
-                userData.UserMiddleName,
-                userData.UserFirstName,
-                userData.Email,
-                userData.Phone,
-                userData.Password
-            );
-
-            if (user == null)
-            {
-                response.StatusCode = 400;
-                await response.WriteAsJsonAsync(new { message = "Некорректные данные" });
-                return;
-            }
-
-            response.StatusCode = 201;
-            response.Headers.Location = $"/api/users/{user.Id}";
-            await response.WriteAsJsonAsync(user);
+            return BadRequest(new { message = "Username и City обязательны" });
         }
-        catch (Exception)
+
+        var user = _service.CreateUser(
+            userData.Username,
+            userData.City,
+            userData.UserLastName,
+            userData.UserMiddleName,
+            userData.UserFirstName,
+            userData.Email,
+            userData.Phone,
+            userData.Password
+        );
+
+        if (user == null)
         {
-            response.StatusCode = 400;
-            await response.WriteAsJsonAsync(new { message = "Некорректные данные" });
+            return BadRequest(new { message = "Некорректные данные" });
         }
+
+        return CreatedAtAction(
+            nameof(GetById),
+            new { id = user.Id },
+            user
+        );
     }
 
-    private async Task UpdateUserAsync(int id, HttpRequest request, HttpResponse response)
+    /// <summary>
+    /// Обновить данные пользователя
+    /// </summary>
+    /// <param name="id">ID пользователя</param>
+    /// <param name="userData">Обновленные данные</param>
+    /// <returns>Обновленный пользователь</returns>
+    /// <response code="200">Пользователь успешно обновлен</response>
+    /// <response code="400">Некорректные данные</response>
+    /// <response code="404">Пользователь не найден</response>
+    [HttpPut("{id:int:min(1)}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public ActionResult<User> Update(int id, [FromBody] User userData)
     {
-        try
+        if (userData == null)
         {
-            var userData = await request.ReadFromJsonAsync<User>();
-
-            if (userData == null)
-            {
-                response.StatusCode = 400;
-                await response.WriteAsJsonAsync(new { message = "Некорректные данные" });
-                return;
-            }
-
-            var user = _service.UpdateUser(
-                id,
-                userData.Username,
-                userData.City,
-                userData.UserLastName,
-                userData.UserMiddleName,
-                userData.UserFirstName,
-                userData.Email,
-                userData.Phone,
-                userData.Password
-            );
-
-            if (user == null)
-            {
-                response.StatusCode = 404;
-                await response.WriteAsJsonAsync(new { message = "Пользователь не найден" });
-                return;
-            }
-
-            await response.WriteAsJsonAsync(user);
+            return BadRequest(new { message = "Некорректные данные" });
         }
-        catch (Exception)
+
+        var user = _service.UpdateUser(
+            id,
+            userData.Username,
+            userData.City,
+            userData.UserLastName,
+            userData.UserMiddleName,
+            userData.UserFirstName,
+            userData.Email,
+            userData.Phone,
+            userData.Password
+        );
+
+        if (user == null)
         {
-            response.StatusCode = 400;
-            await response.WriteAsJsonAsync(new { message = "Некорректные данные" });
+            return NotFound(new { message = "Пользователь не найден" });
         }
+
+        return Ok(user);
     }
 
-    private async Task DeleteUserAsync(int id, HttpResponse response)
+    /// <summary>
+    /// Удалить пользователя
+    /// </summary>
+    /// <param name="id">ID пользователя</param>
+    /// <response code="204">Пользователь успешно удален</response>
+    /// <response code="404">Пользователь не найден</response>
+    [HttpDelete("{id:int:min(1)}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public IActionResult Delete(int id)
     {
         var result = _service.DeleteUser(id);
 
-        if (result)
+        if (!result)
         {
-            response.StatusCode = 204;
+            return NotFound(new { message = "Пользователь не найден" });
         }
-        else
-        {
-            response.StatusCode = 404;
-            await response.WriteAsJsonAsync(new { message = "Пользователь не найден" });
-        }
-    }
 
-    private bool IsIdPath(PathString path)
-    {
-        return Regex.IsMatch(path, _expressionForId);
-    }
-
-    private int GetIdFromPath(PathString path)
-    {
-        var idStr = path.Value?.Split("/")[3];
-        return int.TryParse(idStr, out var id) ? id : 0;
+        return NoContent();
     }
 }
