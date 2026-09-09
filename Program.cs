@@ -1,28 +1,35 @@
+using Microsoft.EntityFrameworkCore;
 using WebApplication1.Controllers;
+using WebApplication1.Data;
 using WebApplication1.Repositories;
 using WebApplication1.Services;
 
 var builder = WebApplication.CreateBuilder();
 
-// Регистрация зависимостей (Dependency Injection)
-// Репозиторий - Singleton, т.к. хранит данные в памяти
-builder.Services.AddSingleton<IPersonRepository, PersonRepository>();
+// DbContext
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Сервис - Singleton, зависит от репозитория
-builder.Services.AddSingleton<IPersonService, PersonService>();
-
-// Контроллер - Singleton, зависит от сервиса
-builder.Services.AddSingleton<PersonController>();
+// DI
+builder.Services.AddScoped<IUserRepository, SqlUserRepository>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<UserController>();
 
 var app = builder.Build();
 
-// Получаем контроллер через DI
-var personController = app.Services.GetRequiredService<PersonController>();
+// Тестовый код (удалить после проверки)
+using (var scope = app.Services.CreateScope())
+{
+    var repo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+    var users = repo.GetAll();
+    Console.WriteLine($"[DEBUG] Пользователей в БД: {users.Count()}");
+}
 
-// Маршрутизация всех запросов через контроллер
 app.Run(async (context) =>
 {
-    await personController.HandleRequestAsync(context);
+    // Получаем контроллер через DI внутри запроса
+    var userController = context.RequestServices.GetRequiredService<UserController>();
+    await userController.HandleRequestAsync(context);
 });
 
 app.Run();
